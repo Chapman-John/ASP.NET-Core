@@ -1,0 +1,31 @@
+GET http://localhost:5233/books
+
+
+###
+GET http://localhost:5233/books/1
+
+###
+POST http://localhost:5233/books
+Content-Type: application/json
+
+{
+    "name": "Richer,Wiser,Happier",
+    "genre": "nonfiction",
+    "price":  45,
+    "releaseDate": "2018-01-01"
+}
+
+###
+PUT http://localhost:5233/books/3
+Content-Type: application/json
+
+{
+   "name": "Richer,Wiser,Happier",
+    "genre": "nonfiction",
+    "price":  40,
+    "releaseDate": "2018-01-01"
+}
+
+
+###
+DELETE http://localhost:5233/books/4
