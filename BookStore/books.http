@@ -1,31 +1,62 @@
+# Books API Tests
+
+### Get all books
 GET http://localhost:5233/books
 
-
-###
+### Get single book
 GET http://localhost:5233/books/1
 
-###
+### Create new book
 POST http://localhost:5233/books
 Content-Type: application/json
 
 {
-    "name": "Richer,Wiser,Happier",
-    "genre": "nonfiction",
-    "price":  45,
+    "name": "Richer, Wiser, Happier",
+    "genre": "Non-Fiction",
+    "price": 45,
     "releaseDate": "2018-01-01"
 }
 
-###
+### Update book
 PUT http://localhost:5233/books/3
 Content-Type: application/json
 
 {
-   "name": "Richer,Wiser,Happier",
-    "genre": "nonfiction",
-    "price":  40,
+    "name": "Richer, Wiser, Happier - Updated",
+    "genre": "Self-Help",
+    "price": 40,
     "releaseDate": "2018-01-01"
 }
 
-
-###
+### Delete book
 DELETE http://localhost:5233/books/4
+
+# Genres API Tests
+
+### Get all genres
+GET http://localhost:5233/genres
+
+### Get single genre
+GET http://localhost:5233/genres/1
+
+### Create new genre
+POST http://localhost:5233/genres
+Content-Type: application/json
+
+{
+    "name": "Mystery"
+}
+
+### Update genre
+PUT http://localhost:5233/genres/1
+Content-Type: application/json
+
+{
+    "name": "Literary Fiction"
+}
+
+### Delete genre (will fail if books are using it)
+DELETE http://localhost:5233/genres/1
+
+### Browse Swagger UI
+GET http://localhost:5233/swagger
