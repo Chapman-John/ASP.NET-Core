@@ -1,93 +1,141 @@
+using BookStore.Data;
+using BookStore.Entities;
+using Microsoft.EntityFrameworkCore;
+
 namespace BookStore.Dtos;
 
 public static class BooksEndpoints
 {
-
     const string GetBookEndpointName = "GetBook";
-
-    private static readonly List<BookDto> books = [
-        new (
-        1,
-        "Antifragile",
-        "nonfiction",
-        40,
-        new DateOnly(2012, 1, 01)),
-    new (
-        2,
-        "Out of Control",
-        "nonfiction",
-        20.11M,
-        new DateOnly(1991, 1, 01)),
-    new (
-        3,
-        "The One Thing",
-        "nonfiction",
-        20,
-        new DateOnly(2014, 1, 01))
-    ];
 
     public static RouteGroupBuilder MapBooksEndpoints(this WebApplication app)
     {
         var group = app.MapGroup("books")
-            .WithParameterValidation();
+            .WithParameterValidation()
+            .WithTags("Books");
 
-        //GET all books
-        group.MapGet("/", () => books);
+        // GET all books
+        group.MapGet("/", async (BookStoreContext context) =>
+        {
+            var books = await context.Books
+                .Include(b => b.Genre)
+                .Select(b => new BookDto(
+                    b.Id,
+                    b.Name,
+                    b.Genre!.Name,
+                    b.Price,
+                    b.ReleaseDate))
+                .ToListAsync();
+            
+            return Results.Ok(books);
+        })
+        .WithSummary("Get all books")
+        .WithDescription("Retrieve a list of all books in the store");
 
         // GET one book
-        group.MapGet("/{id}", (int id) =>
+        group.MapGet("/{id}", async (int id, BookStoreContext context) =>
         {
-            BookDto? book = books.Find(book => book.Id == id);
+            var book = await context.Books
+                .Include(b => b.Genre)
+                .Where(b => b.Id == id)
+                .Select(b => new BookDto(
+                    b.Id,
+                    b.Name,
+                    b.Genre!.Name,
+                    b.Price,
+                    b.ReleaseDate))
+                .FirstOrDefaultAsync();
 
             return book is null ? Results.NotFound() : Results.Ok(book);
         })
-            .WithName(GetBookEndpointName);
+        .WithName(GetBookEndpointName)
+        .WithSummary("Get book by ID")
+        .WithDescription("Retrieve a specific book by its ID");
 
         // POST books
-        group.MapPost("/", (CreateBookDto newBook) =>
+        group.MapPost("/", async (CreateBookDto newBook, BookStoreContext context) =>
         {
-            BookDto book = new(
-                books.Count + 1,
-                newBook.Name,
-                newBook.Genre,
-                newBook.Price,
-                newBook.ReleaseDate);
+            // Find genre by name
+            var genre = await context.Genres
+                .FirstOrDefaultAsync(g => g.Name.ToLower() == newBook.Genre.ToLower());
+            
+            if (genre is null)
+            {
+                return Results.BadRequest($"Genre '{newBook.Genre}' not found");
+            }
 
-            books.Add(book);
+            var book = new Book
+            {
+                Name = newBook.Name,
+                GenreId = genre.Id,
+                Price = newBook.Price,
+                ReleaseDate = newBook.ReleaseDate
+            };
 
-            return Results.CreatedAtRoute(GetBookEndpointName, new { id = book.Id }, book);
-        });
+            context.Books.Add(book);
+            await context.SaveChangesAsync();
 
+            var bookDto = new BookDto(
+                book.Id,
+                book.Name,
+                genre.Name,
+                book.Price,
+                book.ReleaseDate);
 
-        // UPDATE one book
-        group.MapPut("/{id}", (int id, UpdateBookDto updatedBook) =>
+            return Results.CreatedAtRoute(GetBookEndpointName, new { id = book.Id }, bookDto);
+        })
+        .WithSummary("Create new book")
+        .WithDescription("Add a new book to the store");
+
+        // PUT (update) one book
+        group.MapPut("/{id}", async (int id, UpdateBookDto updatedBook, BookStoreContext context) =>
         {
-
-            var index = books.FindIndex(book => book.Id == id);
-
-            if (index == -1)
+            var book = await context.Books.FindAsync(id);
+            
+            if (book is null)
             {
                 return Results.NotFound();
             }
 
-            books[index] = new BookDto(
-                id,
-                updatedBook.Name,
-                updatedBook.Genre,
-                updatedBook.Price,
-                updatedBook.ReleaseDate
-                );
+            // Find genre by name
+            var genre = await context.Genres
+                .FirstOrDefaultAsync(g => g.Name.ToLower() == updatedBook.Genre.ToLower());
+            
+            if (genre is null)
+            {
+                return Results.BadRequest($"Genre '{updatedBook.Genre}' not found");
+            }
+
+            book.Name = updatedBook.Name;
+            book.GenreId = genre.Id;
+            book.Price = updatedBook.Price;
+            book.ReleaseDate = updatedBook.ReleaseDate;
+
+            await context.SaveChangesAsync();
+            
             return Results.NoContent();
-        });
+        })
+        .WithSummary("Update book")
+        .WithDescription("Update an existing book's details");
 
         // DELETE one book
-        group.MapDelete("/{id}", (int id) =>
+        group.MapDelete("/{id}", async (int id, BookStoreContext context) =>
         {
+            var book = await context.Books.FindAsync(id);
+            
+            if (book is null)
+            {
+                return Results.NotFound();
+            }
 
-            books.RemoveAll(book => book.Id == id);
+            context.Books.Remove(book);
+            await context.SaveChangesAsync();
 
             return Results.NoContent();
-        });
+        })
+        .WithSummary("Delete book")
+        .WithDescription("Remove a book from the store");
+
         return group;
     }
 }
